@@ -1,8 +1,9 @@
-use axum::{http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use serde_inline_default::serde_inline_default;
 
 use crate::{
+    instance::TokenInstance,
     router::{InternalRouter, Router},
     Token,
 };
@@ -67,8 +68,8 @@ impl ListRes {
 }
 
 impl InternalRouter {
-    pub async fn list(payload: ListReq) -> ListRes {
-        Token::show(payload.user_id, payload.page)
+    pub async fn list(instance: &TokenInstance, payload: ListReq) -> ListRes {
+        Token::show(instance, payload.user_id, payload.page)
             .await
             .map(ListRes::success)
             .unwrap_or_else(ListRes::failure)
@@ -76,8 +77,11 @@ impl InternalRouter {
 }
 
 impl Router {
-    pub async fn list(Json(payload): Json<ListReq>) -> (StatusCode, Json<ListRes>) {
-        let res = InternalRouter::list(payload).await;
+    pub async fn list(
+        State(instance): State<TokenInstance>,
+        Json(payload): Json<ListReq>,
+    ) -> (StatusCode, Json<ListRes>) {
+        let res = InternalRouter::list(&instance, payload).await;
         (res.status(), Json(res))
     }
 }

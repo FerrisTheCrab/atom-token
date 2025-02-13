@@ -1,7 +1,8 @@
-use axum::{http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    instance::TokenInstance,
     router::{InternalRouter, Router},
     Token,
 };
@@ -44,8 +45,8 @@ impl SetRes {
 }
 
 impl InternalRouter {
-    pub async fn set(payload: SetReq) -> SetRes {
-        Token::set(&payload.token, &payload.label)
+    pub async fn set(instance: &TokenInstance, payload: SetReq) -> SetRes {
+        Token::set(instance, &payload.token, &payload.label)
             .await
             .map(SetRes::success)
             .unwrap_or_else(SetRes::failure)
@@ -53,8 +54,11 @@ impl InternalRouter {
 }
 
 impl Router {
-    pub async fn set(Json(payload): Json<SetReq>) -> (StatusCode, Json<SetRes>) {
-        let res = InternalRouter::set(payload).await;
+    pub async fn set(
+        State(instance): State<TokenInstance>,
+        Json(payload): Json<SetReq>,
+    ) -> (StatusCode, Json<SetRes>) {
+        let res = InternalRouter::set(&instance, payload).await;
         (res.status(), Json(res))
     }
 }

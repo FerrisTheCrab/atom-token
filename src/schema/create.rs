@@ -1,7 +1,8 @@
-use axum::{http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    instance::TokenInstance,
     router::{InternalRouter, Router},
     Token,
 };
@@ -45,8 +46,8 @@ impl CreateRes {
 }
 
 impl InternalRouter {
-    pub async fn create(payload: CreateReq) -> CreateRes {
-        Token::create(payload.user_id, payload.label)
+    pub async fn create(instance: &TokenInstance, payload: CreateReq) -> CreateRes {
+        Token::create(instance, payload.user_id, payload.label)
             .await
             .map(CreateRes::success)
             .unwrap_or_else(CreateRes::failure)
@@ -54,8 +55,11 @@ impl InternalRouter {
 }
 
 impl Router {
-    pub async fn create(Json(payload): Json<CreateReq>) -> (StatusCode, Json<CreateRes>) {
-        let res = InternalRouter::create(payload).await;
+    pub async fn create(
+        State(instance): State<TokenInstance>,
+        Json(payload): Json<CreateReq>,
+    ) -> (StatusCode, Json<CreateRes>) {
+        let res = InternalRouter::create(&instance, payload).await;
         (res.status(), Json(res))
     }
 }

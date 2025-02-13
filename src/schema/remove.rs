@@ -1,7 +1,8 @@
-use axum::{http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    instance::TokenInstance,
     router::{InternalRouter, Router},
     Token,
 };
@@ -43,8 +44,8 @@ impl RemoveRes {
 }
 
 impl InternalRouter {
-    pub async fn remove(payload: RemoveReq) -> RemoveRes {
-        Token::remove(&payload.token)
+    pub async fn remove(instance: &TokenInstance, payload: RemoveReq) -> RemoveRes {
+        Token::remove(instance, &payload.token)
             .await
             .map(RemoveRes::success)
             .unwrap_or_else(RemoveRes::failure)
@@ -52,8 +53,11 @@ impl InternalRouter {
 }
 
 impl Router {
-    pub async fn remove(Json(payload): Json<RemoveReq>) -> (StatusCode, Json<RemoveRes>) {
-        let res = InternalRouter::remove(payload).await;
+    pub async fn remove(
+        State(instance): State<TokenInstance>,
+        Json(payload): Json<RemoveReq>,
+    ) -> (StatusCode, Json<RemoveRes>) {
+        let res = InternalRouter::remove(&instance, payload).await;
         (res.status(), Json(res))
     }
 }

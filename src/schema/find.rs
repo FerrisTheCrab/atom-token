@@ -1,7 +1,8 @@
-use axum::{http::StatusCode, Json};
+use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    instance::TokenInstance,
     router::{InternalRouter, Router},
     Token,
 };
@@ -51,8 +52,8 @@ impl FindRes {
 }
 
 impl InternalRouter {
-    pub async fn find(payload: FindReq) -> FindRes {
-        Token::get(payload.token)
+    pub async fn find(instance: &TokenInstance, payload: FindReq) -> FindRes {
+        Token::get(instance, payload.token)
             .await
             .map(FindRes::success)
             .unwrap_or_else(FindRes::failure)
@@ -60,8 +61,11 @@ impl InternalRouter {
 }
 
 impl Router {
-    pub async fn find(Json(payload): Json<FindReq>) -> (StatusCode, Json<FindRes>) {
-        let res = InternalRouter::find(payload).await;
+    pub async fn find(
+        State(instance): State<TokenInstance>,
+        Json(payload): Json<FindReq>,
+    ) -> (StatusCode, Json<FindRes>) {
+        let res = InternalRouter::find(&instance, payload).await;
         (res.status(), Json(res))
     }
 }

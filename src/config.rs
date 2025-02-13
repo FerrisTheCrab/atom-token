@@ -1,9 +1,7 @@
 use std::{
-    env,
     fs::{self, OpenOptions},
     io::Write,
-    path::{Path, PathBuf},
-    sync::OnceLock,
+    path::Path,
 };
 
 use mongodb::{
@@ -16,11 +14,8 @@ use serde_inline_default::serde_inline_default;
 
 use crate::token::Token;
 
-static MASTERCONFIG: OnceLock<MasterConfig> = OnceLock::new();
-static TOKENS: OnceLock<Collection<Token>> = OnceLock::new();
-
 #[serde_inline_default]
-#[derive(Serialize, Deserialize, DefaultFromSerde)]
+#[derive(Serialize, Deserialize, DefaultFromSerde, Clone)]
 pub struct MasterConfig {
     #[serde_inline_default(8080)]
     pub port: u16,
@@ -35,7 +30,7 @@ pub struct MasterConfig {
 }
 
 #[serde_inline_default]
-#[derive(Serialize, Deserialize, DefaultFromSerde)]
+#[derive(Serialize, Deserialize, DefaultFromSerde, Clone)]
 pub struct MongoConfig {
     #[serde_inline_default("mongodb://localhost:27017".to_string())]
     pub address: String,
@@ -69,29 +64,19 @@ impl MasterConfig {
             .unwrap();
     }
 
-    fn read() -> Self {
-        let path = PathBuf::from(env::var("CONFIG").expect("env CONFIG not set"));
-
+    pub fn read(path: &Path) -> Self {
         if !path.exists() {
-            Self::create(&path);
+            Self::create(path);
         }
 
         let content = fs::read(path).unwrap();
         serde_json::from_slice(&content).expect("bad JSON")
     }
-
-    pub fn get() -> &'static Self {
-        MASTERCONFIG.get_or_init(Self::read)
-    }
 }
 
 impl MongoConfig {
-    pub fn get() -> &'static Collection<Token> {
-        TOKENS.get_or_init(Self::load)
-    }
-
-    fn load() -> Collection<Token> {
-        futures::executor::block_on(async { MasterConfig::get().mongodb.get_collection().await })
+    pub fn load(&self) -> Collection<Token> {
+        futures::executor::block_on(async { self.get_collection().await })
     }
 
     async fn get_collection(&self) -> Collection<Token> {

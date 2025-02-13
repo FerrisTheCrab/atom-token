@@ -7,7 +7,7 @@ use mongodb::{
 use rand::distr::{Alphanumeric, SampleString};
 use serde::{Deserialize, Serialize};
 
-use crate::config::{MasterConfig, MongoConfig};
+use crate::instance::TokenInstance;
 
 macro_rules! not_found {
     () => {
@@ -26,17 +26,26 @@ pub struct Token {
 }
 
 impl Token {
-    async fn find(token: String) -> Result<Option<Token>, mongodb::error::Error> {
-        MongoConfig::get()
+    async fn find(
+        instance: &TokenInstance,
+        token: String,
+    ) -> Result<Option<Token>, mongodb::error::Error> {
+        instance
+            .tokens
             .find_one(doc! { "_id": Bson::String(token) })
             .await
     }
 
-    async fn list(user_id: u64, page: u64) -> Result<Vec<Token>, mongodb::error::Error> {
-        let mut cursor = MongoConfig::get()
+    async fn list(
+        instance: &TokenInstance,
+        user_id: u64,
+        page: u64,
+    ) -> Result<Vec<Token>, mongodb::error::Error> {
+        let mut cursor = instance
+            .tokens
             .find(doc! { "userID": Bson::Int64(user_id as i64) })
-            .skip(page * MasterConfig::get().page_size)
-            .limit(MasterConfig::get().page_size as i64)
+            .skip(page * instance.config.page_size)
+            .limit(instance.config.page_size as i64)
             .await?;
 
         let mut tokens = Vec::new();
@@ -48,8 +57,13 @@ impl Token {
         Ok(tokens)
     }
 
-    async fn update(token: &str, label: &str) -> Result<(), mongodb::error::Error> {
-        if MongoConfig::get()
+    async fn update(
+        instance: &TokenInstance,
+        token: &str,
+        label: &str,
+    ) -> Result<(), mongodb::error::Error> {
+        if instance
+            .tokens
             .update_one(doc! { "_id": &token}, doc! { "$set": {"label": label}})
             .await?
             .matched_count
@@ -63,8 +77,12 @@ impl Token {
 
     #[allow(clippy::wrong_self_convention, clippy::new_ret_no_self)]
     #[async_recursion::async_recursion]
-    async fn new(user_id: u64, label: String) -> Result<String, mongodb::error::Error> {
-        let id = Alphanumeric.sample_string(&mut rand::rng(), MasterConfig::get().token_length);
+    async fn new(
+        instance: &TokenInstance,
+        user_id: u64,
+        label: String,
+    ) -> Result<String, mongodb::error::Error> {
+        let id = Alphanumeric.sample_string(&mut rand::rng(), instance.config.token_length);
 
         let to_insert = Self {
             id: id.clone(),
@@ -73,21 +91,22 @@ impl Token {
             label: label.clone(),
         };
 
-        match MongoConfig::get().insert_one(to_insert).await {
+        match instance.tokens.insert_one(to_insert).await {
             Ok(_) => Ok(id),
             Err(e) => match *e.kind {
                 mongodb::error::ErrorKind::Write(WriteFailure::WriteError(write_error))
                     if write_error.code == 11000 =>
                 {
-                    Self::new(user_id, label).await // if two tokens somehow clashes, do it again
+                    Self::new(instance, user_id, label).await // if two tokens somehow clashes, do it again
                 }
                 _ => Err(e),
             },
         }
     }
 
-    async fn delete(token: &str) -> Result<bool, mongodb::error::Error> {
-        Ok(MongoConfig::get()
+    async fn delete(instance: &TokenInstance, token: &str) -> Result<bool, mongodb::error::Error> {
+        Ok(instance
+            .tokens
             .delete_one(doc! { "_id": token })
             .await?
             .deleted_count
@@ -96,30 +115,48 @@ impl Token {
 }
 
 impl Token {
-    pub async fn create(user_id: u64, label: String) -> Result<String, mongodb::error::Error> {
-        Self::new(user_id, label).await
+    pub async fn create(
+        instance: &TokenInstance,
+        user_id: u64,
+        label: String,
+    ) -> Result<String, mongodb::error::Error> {
+        Self::new(instance, user_id, label).await
     }
 
-    pub async fn set(token: &str, label: &str) -> Result<(), mongodb::error::Error> {
-        Self::update(token, label).await
+    pub async fn set(
+        instance: &TokenInstance,
+        token: &str,
+        label: &str,
+    ) -> Result<(), mongodb::error::Error> {
+        Self::update(instance, token, label).await
     }
 
-    pub async fn remove(token: &str) -> Result<(), mongodb::error::Error> {
-        if Self::delete(token).await? {
+    pub async fn remove(
+        instance: &TokenInstance,
+        token: &str,
+    ) -> Result<(), mongodb::error::Error> {
+        if Self::delete(instance, token).await? {
             Ok(())
         } else {
             Err(not_found!())
         }
     }
 
-    pub async fn get(token: String) -> Result<Self, mongodb::error::Error> {
-        match Self::find(token).await? {
+    pub async fn get(
+        instance: &TokenInstance,
+        token: String,
+    ) -> Result<Self, mongodb::error::Error> {
+        match Self::find(instance, token).await? {
             Some(got) => Ok(got),
             None => Err(not_found!()),
         }
     }
 
-    pub async fn show(user_id: u64, page: u64) -> Result<Vec<Self>, mongodb::error::Error> {
-        Self::list(user_id, page).await
+    pub async fn show(
+        instance: &TokenInstance,
+        user_id: u64,
+        page: u64,
+    ) -> Result<Vec<Self>, mongodb::error::Error> {
+        Self::list(instance, user_id, page).await
     }
 }
