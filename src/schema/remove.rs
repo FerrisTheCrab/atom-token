@@ -1,6 +1,8 @@
+#[cfg(feature = "core")]
 use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "core")]
 use crate::{
     instance::TokenInstance,
     router::{InternalRouter, Router},
@@ -21,6 +23,7 @@ pub enum RemoveRes {
     Error { reason: String },
 }
 
+#[cfg(feature = "core")]
 impl RemoveRes {
     pub fn success(_: ()) -> Self {
         Self::Removed
@@ -43,6 +46,7 @@ impl RemoveRes {
     }
 }
 
+#[cfg(feature = "core")]
 impl InternalRouter {
     pub async fn remove(instance: &TokenInstance, payload: RemoveReq) -> RemoveRes {
         Token::remove(instance, &payload.token)
@@ -52,6 +56,7 @@ impl InternalRouter {
     }
 }
 
+#[cfg(feature = "core")]
 impl Router {
     pub async fn remove(
         State(instance): State<TokenInstance>,

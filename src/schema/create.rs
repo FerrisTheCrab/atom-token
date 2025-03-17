@@ -1,6 +1,8 @@
+#[cfg(feature = "core")]
 use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "core")]
 use crate::{
     instance::TokenInstance,
     router::{InternalRouter, Router},
@@ -23,6 +25,7 @@ pub enum CreateRes {
     Error { reason: String },
 }
 
+#[cfg(feature = "core")]
 impl CreateRes {
     pub fn success(token: String) -> Self {
         Self::Created { token }
@@ -45,6 +48,7 @@ impl CreateRes {
     }
 }
 
+#[cfg(feature = "core")]
 impl InternalRouter {
     pub async fn create(instance: &TokenInstance, payload: CreateReq) -> CreateRes {
         Token::create(instance, payload.user_id, payload.label)
@@ -54,6 +58,7 @@ impl InternalRouter {
     }
 }
 
+#[cfg(feature = "core")]
 impl Router {
     pub async fn create(
         State(instance): State<TokenInstance>,

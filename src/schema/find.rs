@@ -1,6 +1,8 @@
+#[cfg(feature = "core")]
 use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 
+#[cfg(feature = "core")]
 use crate::{
     instance::TokenInstance,
     router::{InternalRouter, Router},
@@ -25,6 +27,7 @@ pub enum FindRes {
     Error { reason: String },
 }
 
+#[cfg(feature = "core")]
 impl FindRes {
     pub fn success(token: Token) -> Self {
         Self::Found {
@@ -51,6 +54,7 @@ impl FindRes {
     }
 }
 
+#[cfg(feature = "core")]
 impl InternalRouter {
     pub async fn find(instance: &TokenInstance, payload: FindReq) -> FindRes {
         Token::get(instance, payload.token)
@@ -60,6 +64,7 @@ impl InternalRouter {
     }
 }
 
+#[cfg(feature = "core")]
 impl Router {
     pub async fn find(
         State(instance): State<TokenInstance>,

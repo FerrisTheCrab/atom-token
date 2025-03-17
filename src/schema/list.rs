@@ -1,7 +1,9 @@
+#[cfg(feature = "core")]
 use axum::{extract::State, http::StatusCode, Json};
 use serde::{Deserialize, Serialize};
 use serde_inline_default::serde_inline_default;
 
+#[cfg(feature = "core")]
 use crate::{
     instance::TokenInstance,
     router::{InternalRouter, Router},
@@ -24,6 +26,7 @@ pub struct ListedToken {
     pub label: String,
 }
 
+#[cfg(feature = "core")]
 impl From<Token> for ListedToken {
     fn from(value: Token) -> Self {
         Self {
@@ -34,6 +37,7 @@ impl From<Token> for ListedToken {
     }
 }
 
+#[cfg(feature = "core")]
 #[derive(Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum ListRes {
@@ -43,6 +47,7 @@ pub enum ListRes {
     Error { reason: String },
 }
 
+#[cfg(feature = "core")]
 impl ListRes {
     pub fn success(tokens: Vec<Token>) -> Self {
         Self::List {
@@ -67,6 +72,7 @@ impl ListRes {
     }
 }
 
+#[cfg(feature = "core")]
 impl InternalRouter {
     pub async fn list(instance: &TokenInstance, payload: ListReq) -> ListRes {
         Token::show(instance, payload.user_id, payload.page)
@@ -76,6 +82,7 @@ impl InternalRouter {
     }
 }
 
+#[cfg(feature = "core")]
 impl Router {
     pub async fn list(
         State(instance): State<TokenInstance>,
